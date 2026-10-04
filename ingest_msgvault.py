@@ -198,9 +198,13 @@ def main():
     collection = client.get_or_create_collection(a.collection)
 
     done, processed, chunk_total, t0 = [], 0, 0, time.time()
+    conn = sqlite3.connect(a.db)
+    remaining = conn.execute("SELECT COUNT(*) FROM messages WHERE embed_gen IS NULL AND deleted_at IS NULL").fetchone()[0]
+    conn.close()
     gen = get_or_make_gen(a.db)
     print(f"[START] msgvault ingest — gen={gen} batch={a.batch} "
-          f"store={a.store} collection={a.collection} dry_run={a.dry_run}", flush=True)
+          f"store={a.store} collection={a.collection} dry_run={a.dry_run} "
+          f"remaining={remaining}", flush=True)
 
     while True:
         if a.curfew:
@@ -227,6 +231,7 @@ def main():
             n = upsert_chunks(collection, r["id"], canon, doc, meta, embed_fn)
             chunk_total += n
             stamped_ids.append(r["id"])
+            processed += 1
             if a.heartbeats:
                 print(f"[WROTE] row={r['id']} chunks+={n} total_chunks={chunk_total}", flush=True)
             if a.limit and processed >= a.limit:
@@ -236,9 +241,11 @@ def main():
         if a.dry_run:
             print("[DRY-DONE] dry-run inspects one batch only — nothing stamped, nothing looped", flush=True)
             break
-        processed += len(stamped_ids)
         print(f"[BATCH] processed={processed} chunks={chunk_total} "
               f"elapsed={time.time()-t0:.0f}s", flush=True)
+        left = max(remaining - processed, 0)
+        eta_min = int(((time.time() - t0) / max(processed, 1)) * left / 60) if left else 0
+        print(f"[PROGRESS] {processed} done · {left} remaining · ETA ~{eta_min} min", flush=True)
         if a.limit and processed >= a.limit:
             break
 
