@@ -62,7 +62,7 @@ nohup python3 -u ingest_msgvault.py
 - **[Ship 4](https://github.com/qaevelyn/a-mirror-of-my-becoming-rag-ship4-ibm-granite-agentic)** — IBM Granite Agentic RAG
 - **[Ship 5](https://github.com/qaevelyn/a-mirror-of-my-becoming-rag-ship5-ibm-granite-agentic-evidenceflow)** — IBM Granite Agentic RAG with EvidenceFlow
 - **[Ship 6 — Suite: Ingestion Tools](https://github.com/qaevelyn/a-mirror-of-my-becoming-suite-ingestion-tools)** — the suite that feeds the fleet
-- **Ship 7** — this repo — msgvault adapter
+- **[Ship 7](https://github.com/qaevelyn/a-mirror-of-my-becoming-suite-msgvault-adapter)** — this repo — msgvault adapter
 **[A Mirror of My Becoming™](https://github.com/qaevelyn/a-mirror-of-my-becoming)** — the parent index.
 
 ---
