@@ -154,7 +154,13 @@ def upsert_chunks(collection, msg_id, canonical, doc, meta, embed_fn=None):
         docs.append(ch)
         metas.append(m)
     if embed_fn:
-        vectors = embed_fn.embed_documents(docs)
+        # v2 — bound each embed request to ~5 chunks (~1.9K tokens) so no
+        # request exceeds the llama-server -b 2048 compute buffer. Root cause
+        # of the 2:33/2:54 crashes: per-message requests up to 450K chars.
+        vectors = []
+        EMBED_REQUEST_CHUNKS = 5
+        for i in range(0, len(docs), EMBED_REQUEST_CHUNKS):
+            vectors.extend(embed_fn.embed_documents(docs[i:i + EMBED_REQUEST_CHUNKS]))
         collection.upsert(ids=ids, documents=docs, metadatas=metas, embeddings=vectors)
     else:
         collection.upsert(ids=ids, documents=docs, metadatas=metas)
