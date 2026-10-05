@@ -166,7 +166,7 @@ def upsert_chunks(collection, msg_id, canonical, doc, meta, embed_fn=None):
         collection.upsert(ids=ids, documents=docs, metadatas=metas)
     return total
 
-JOURNAL = os.path.join(os.path.dirname(LOG_FILE), "stamp_journal.jsonl")
+JOURNAL = os.path.join(os.path.expanduser("~/Mirror-Food/ingest"), "stamp_journal.jsonl")
 
 def stamp_embedded(db_path, row_ids, gen):
     """v3 companion doctrine: DB stamp + journal file in the same instant.
