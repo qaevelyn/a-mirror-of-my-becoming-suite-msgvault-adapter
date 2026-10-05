@@ -248,7 +248,7 @@ def main():
 
     while True:
         stop_at = None
-        if a.auto:
+        if True:  # v3: schedule ALWAYS applies — manual and auto both stop next 8AM (Wed runs through, weekend to Monday)
             from datetime import timedelta
             now = datetime.now()
             stop = now.replace(hour=8, minute=0, second=0, microsecond=0)
@@ -262,8 +262,8 @@ def main():
                 stop = stop.replace(hour=8, minute=0)
             stop_at = stop
         if stop_at and datetime.now() >= stop_at:
-                print(f"[CURFEW] schedule stop reached ({stop_at}) — progress stamped, exiting cleanly. Resume anytime; watermark holds.", flush=True)
-                break
+            print(f"[CURFEW] schedule stop reached ({stop_at}) — progress stamped, exiting cleanly. Resume anytime; watermark holds.", flush=True)
+            break
         batch = fetch_batch(a.db, a.batch, done)
         if not batch:
             break
