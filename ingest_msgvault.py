@@ -166,12 +166,42 @@ def upsert_chunks(collection, msg_id, canonical, doc, meta, embed_fn=None):
         collection.upsert(ids=ids, documents=docs, metadatas=metas)
     return total
 
+JOURNAL = os.path.join(os.path.dirname(LOG_FILE), "stamp_journal.jsonl")
+
 def stamp_embedded(db_path, row_ids, gen):
+    """v3 companion doctrine: DB stamp + journal file in the same instant.
+    If the DB stamp silently fails, startup adopts journal entries — no re-embed."""
     conn = sqlite3.connect(db_path)
     conn.executemany("UPDATE messages SET embed_gen = ? WHERE id = ?",
                      [(gen, rid) for rid in row_ids])
     conn.commit()
+    vc = conn.execute("SELECT COUNT(*) FROM messages WHERE id IN (%s) AND embed_gen IS NOT NULL" % ",".join("?"*len(row_ids)), row_ids).fetchone()[0]
     conn.close()
+    if vc < len(row_ids):
+        logging.warning("STAMP INCOMPLETE: %d/%d verified — journal holds the truth" % (vc, len(row_ids)))
+    with open(JOURNAL, "a") as jf:
+        for rid in row_ids:
+            jf.write(str(rid) + "\n")
+
+def adopt_journal(db_path, gen):
+    """Startup: adopt any journal IDs the DB is missing (companion kicks in)."""
+    if not os.path.exists(JOURNAL):
+        return 0
+    ids = [int(l.strip()) for l in open(JOURNAL) if l.strip().isdigit()]
+    if not ids:
+        return 0
+    conn = sqlite3.connect(db_path)
+    adopted = 0
+    for i in range(0, len(ids), 500):
+        chunk = ids[i:i+500]
+        cur = conn.execute("SELECT COUNT(*) FROM messages WHERE id IN (%s) AND embed_gen IS NULL" % ",".join("?"*len(chunk)), chunk).fetchone()[0]
+        if cur:
+            conn.executemany("UPDATE messages SET embed_gen = ? WHERE id IN (%s) AND embed_gen IS NULL" % ",".join("?"*len(chunk)), [(gen, r) for r in chunk])
+            adopted += cur
+    conn.commit(); conn.close()
+    if adopted:
+        logging.warning("JOURNAL ADOPTION: %d stamps recovered from journal — companion countermeasure fired" % adopted)
+    return adopted
 
 def get_or_make_gen(db_path):
     """Use the DB's max existing embed_gen, or start at 1 for a fresh archive."""
@@ -189,8 +219,10 @@ def main():
     ap.add_argument("--batch", type=int, default=200)
     ap.add_argument("--limit", type=int, default=0, help="max messages this run (0=all)")
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--heartbeats", action="store_true", help="per-chunk log lines (watchdog-safe)")
-    ap.add_argument("--curfew", default=None, help="stop cleanly at HH:MM local time (stamp + exit; no restart)")
+    ap.add_argument("--heartbeats", action="store_true", default=True, help="per-chunk log lines (watchdog-safe; default ON)")
+    ap.add_argument("--no-heartbeats", dest="heartbeats", action="store_false", help="silence per-chunk lines")
+    ap.add_argument("--curfew", default=None, help="stop cleanly at HH:MM (same-evening use)")
+    ap.add_argument("--auto", action="store_true", help="schedule-aware stop: Mon/Tue/Thu/Fri 8AM; Wed runs through; weekend runs to Monday 8AM")
     ap.add_argument("--embed-model", default=None, help="sentence-transformers model name; omit = text-only store")
     a = ap.parse_args()
 
@@ -208,15 +240,29 @@ def main():
     remaining = conn.execute("SELECT COUNT(*) FROM messages WHERE embed_gen IS NULL AND deleted_at IS NULL").fetchone()[0]
     conn.close()
     gen = get_or_make_gen(a.db)
+    if not a.dry_run:
+        adopt_journal(a.db, gen)
     print(f"[START] msgvault ingest — gen={gen} batch={a.batch} "
           f"store={a.store} collection={a.collection} dry_run={a.dry_run} "
           f"remaining={remaining}", flush=True)
 
     while True:
-        if a.curfew:
-            now = datetime.now().strftime("%H:%M")
-            if now >= a.curfew:
-                print(f"[CURFEW] {now} >= {a.curfew} — progress stamped, exiting cleanly. Resume anytime; watermark holds.", flush=True)
+        stop_at = None
+        if a.auto:
+            from datetime import timedelta
+            now = datetime.now()
+            stop = now.replace(hour=8, minute=0, second=0, microsecond=0)
+            if stop <= now:
+                stop += timedelta(days=1)
+            wd = stop.weekday()  # 0=Mon
+            if wd == 2:   # would stop Wednesday — no class; run through to Thursday
+                stop += timedelta(days=1)
+            if wd in (5, 6):  # would stop Sat/Sun — run to Monday
+                stop += timedelta(days=(7 - wd) % 7 or 1)
+                stop = stop.replace(hour=8, minute=0)
+            stop_at = stop
+        if stop_at and datetime.now() >= stop_at:
+                print(f"[CURFEW] schedule stop reached ({stop_at}) — progress stamped, exiting cleanly. Resume anytime; watermark holds.", flush=True)
                 break
         batch = fetch_batch(a.db, a.batch, done)
         if not batch:
@@ -257,6 +303,11 @@ def main():
 
     print(f"[DONE] messages={processed} chunks={chunk_total} "
           f"elapsed={time.time()-t0:.0f}s dry_run={a.dry_run}", flush=True)
+    if not a.dry_run:
+        vc = sqlite3.connect(a.db)
+        stamped = vc.execute("SELECT COUNT(*) FROM messages WHERE embed_gen IS NOT NULL").fetchone()[0]
+        vc.close()
+        print(f"[VERIFY] stamps in db: {stamped} — compare against cumulative processed across all runs; a mismatch means stamps are being lost", flush=True)
 
 if __name__ == "__main__":
     main()
