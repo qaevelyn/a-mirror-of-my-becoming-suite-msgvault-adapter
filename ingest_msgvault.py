@@ -242,6 +242,9 @@ def main():
     gen = get_or_make_gen(a.db)
     if not a.dry_run:
         adopt_journal(a.db, gen)
+    if os.path.exists(os.path.expanduser("~/Mirror-Food/ingest/.ingest-idle")):
+        os.remove(os.path.expanduser("~/Mirror-Food/ingest/.ingest-idle"))
+        print("[IDLE] marker cleared — watchdog resurrection re-armed for this run.", flush=True)
     print(f"[START] msgvault ingest — gen={gen} batch={a.batch} "
           f"store={a.store} collection={a.collection} dry_run={a.dry_run} "
           f"remaining={remaining}", flush=True)
@@ -263,6 +266,8 @@ def main():
             stop_at = stop
         if stop_at and datetime.now() >= stop_at:
             print(f"[CURFEW] schedule stop reached ({stop_at}) — progress stamped, exiting cleanly. Resume anytime; watermark holds.", flush=True)
+            open(os.path.expanduser("~/Mirror-Food/ingest/.ingest-idle"), "w").write("schedule stop " + str(stop_at) + "\n")
+            print("[IDLE] marker set — watchdog will not resurrect until a new run clears it.", flush=True)
             break
         batch = fetch_batch(a.db, a.batch, done)
         if not batch:
