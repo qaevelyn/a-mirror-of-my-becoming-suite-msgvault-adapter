@@ -20,6 +20,10 @@ The prior-art search (three passes: GitHub, Reddit/HN/PyPI, and unweighted probl
 
 ---
 
+## Curfew — designed around a real machine
+
+This tool was built on the working person's computer: the same machine runs Zoom classes by day. `--curfew HH:MM` stops cleanly at a set time — stamp, exit, hand the RAM back. `--auto` applies the built-in schedule: Mon/Tue/Thu/Fri stop 08:00 (class days), Wednesday runs through (no class), weekend runs to Monday 08:00. Never self-restarts: the owner decides when compute is available. The schedule is the author's week; the flags exist because unattended jobs should respect the machine's daytime job.
+
 ## Curfew schedule
 
 | Night | Curfew |
