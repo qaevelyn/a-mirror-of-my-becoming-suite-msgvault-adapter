@@ -1,4 +1,4 @@
-# A Mirror of My Becoming™ Suite: msgvault Adapter
+# A Mirror of My Becoming™ Suite: msgvault Adapter™
 
 **The ship that reads mail in its own native tongue.**
 
