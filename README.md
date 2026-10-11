@@ -16,7 +16,9 @@ Bridges a SQLite mail archive into the canonical Chroma vector store. Replace-mo
 
 ## Why it exists
 
-The prior-art search (three passes: GitHub, Reddit/HN/PyPI, and unweighted problem-space) found the pieces scattered across repositories and tutorials — normalization in one PR, deterministic Chroma IDs in another — but nobody publishes the resilience-engineered bridge between a SQLite mail archive and a Chroma vector store. Ship 7 is that bridge, with the fleet's crash-survival engineering behind it. First published of its kind.
+The prior-art search (five passes: GitHub; Reddit/HN/PyPI; an unweighted problem-space search; an adversarial pass by an independent AI collaborator; and an API-driven sweep, October 2026) found the pieces scattered across repositories and tutorials — normalization in one PR, deterministic Chroma IDs in another — but nobody publishes the resilience-engineered bridge between a SQLite mail archive and a Chroma vector store. Ship 7 is that bridge, with the fleet's crash-survival engineering behind it. First published of its kind.
+
+**[The Missing Link](https://qaevelyn.github.io/white-papers/the-missing-link/)** — the full paper documenting this bridge: the architecture, the five-pass prior-art record, and the receipts.
 
 ---
 
